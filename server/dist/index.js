@@ -4,15 +4,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const path_1 = __importDefault(require("path"));
 const uuid_1 = require("uuid");
 const socket_io_1 = require("socket.io");
 const http_1 = __importDefault(require("http"));
-const app = (0, express_1.default)();
+const fileupload_1 = __importDefault(require("./routes/fileupload"));
 const userdetails = new Map();
+const app = (0, express_1.default)();
+app.use(express_1.default.json());
+console.log(path_1.default.join(__dirname, "..", "images"));
+// const imagesDirectory = path.join(__dirname, "..", "..", "images");
+const imagesDirectory = "D:/Chatapplication-socket/server/images";
+// app.use("/images", express.static(path.join(__dirname, "images")));
+app.use("/images", express_1.default.static(imagesDirectory));
+app.use("/images", express_1.default.static(path_1.default.join(__dirname, "..", "..", "images")));
+app.use("/uploads", fileupload_1.default);
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: ["http://localhost:5173"],
         methods: ["GET", "POST"],
         credentials: true,
     },
@@ -32,6 +42,7 @@ io.use((socket, next) => {
             console.log("session id exists");
             customSocket.sessionID = sessionID;
             customSocket.userID = session.userID;
+            // socket.emit("idexist", { socket: socket, id: socket.id });
             return next();
         }
     }
@@ -47,11 +58,12 @@ io.use((socket, next) => {
     });
     customSocket.emit("session", {
         sessionID: customSocket.sessionID,
-        // userID: customSocket.userID,
+        userID: customSocket.userID,
     });
     next();
 });
 io.on("connection", function (socket) {
+    const customSocket = socket;
     const existingre = socket.handshake.auth.sessionID;
     console.log("a user connected");
     console.log(socket.id);
@@ -61,22 +73,33 @@ io.on("connection", function (socket) {
     socket.on("message", function (data, isBinary) {
         console.log(` the message that ${socket.id} sent is ${data.messages}`);
     });
-    const userdetails = new Map();
     // userdetails.set("email",{username:name,socket:socket});
-    userdetails.set("email", socket);
+    console.log(`are ashih beta wts this re beta ${customSocket}`);
+    userdetails.set(customSocket.id, socket);
+    console.log(`user map details is ${userdetails}`);
+    userdetails.forEach(function (val) {
+        console.log("each socket id is ");
+        console.log(val.id);
+    });
     // userdetails.set(socket.id,{email:});
-    userdetails.set(socket.id, socket);
     socket.on("privatemessages", function ({ to, message }) {
         console.log("someone sent the messages");
         console.log(`messages is ${message}`);
         console.log(to);
         const recipeentuser = userdetails.get(to);
+        if (!recipeentuser) {
+            console.log("not found a to user re ");
+        }
         if (recipeentuser) {
             io.to(to).emit("privatemessages", {
                 from: socket.id,
                 message,
             });
         }
+    });
+    socket.on("sendimages", function ({ from, to, imageUrl, }) {
+        console.log(`recieved message from ${from} and the message is ${imageUrl}`);
+        io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
     });
 });
 server.listen(3000, function () {
