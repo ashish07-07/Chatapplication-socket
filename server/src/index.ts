@@ -1,4 +1,5 @@
 import express from "express";
+import path from "path";
 
 import { v4 as uuidv4 } from "uuid";
 
@@ -8,21 +9,33 @@ import { randomUUID } from "crypto";
 
 import { Socket } from "socket.io";
 import { userInfo } from "os";
+import router from "./routes/fileupload";
 
 interface customsocket extends Socket {
   sessionID: string;
   userID: string;
 }
 
+const userdetails = new Map();
 const app = express();
 
-const userdetails = new Map();
+app.use(express.json());
+
+console.log(path.join(__dirname, "..", "images"));
+// const imagesDirectory = path.join(__dirname, "..", "..", "images");
+const imagesDirectory = "D:/Chatapplication-socket/server/images";
+
+// app.use("/images", express.static(path.join(__dirname, "images")));
+app.use("/images", express.static(imagesDirectory));
+app.use("/images", express.static(path.join(__dirname, "..", "..", "images")));
+
+app.use("/uploads", router);
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173"],
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -57,6 +70,8 @@ io.use((socket: Socket, next) => {
       customSocket.sessionID = sessionID;
       customSocket.userID = session.userID;
 
+      // socket.emit("idexist", { socket: socket, id: socket.id });
+
       return next();
     }
   }
@@ -74,13 +89,14 @@ io.use((socket: Socket, next) => {
 
   customSocket.emit("session", {
     sessionID: customSocket.sessionID,
-    // userID: customSocket.userID,
+    userID: customSocket.userID,
   });
 
   next();
 });
 
 io.on("connection", function (socket) {
+  const customSocket = socket as CustomSocket;
   const existingre = socket.handshake.auth.sessionID;
 
   console.log("a user connected");
@@ -94,15 +110,18 @@ io.on("connection", function (socket) {
     console.log(` the message that ${socket.id} sent is ${data.messages}`);
   });
 
-  const userdetails = new Map();
-
   // userdetails.set("email",{username:name,socket:socket});
 
-  userdetails.set("email", socket);
+  console.log(`are ashih beta wts this re beta ${customSocket}`);
+  userdetails.set(customSocket.id, socket);
+  console.log(`user map details is ${userdetails}`);
+
+  userdetails.forEach(function (val) {
+    console.log("each socket id is ");
+    console.log(val.id);
+  });
 
   // userdetails.set(socket.id,{email:});
-
-  userdetails.set(socket.id, socket);
 
   socket.on("privatemessages", function ({ to, message }) {
     console.log("someone sent the messages");
@@ -111,6 +130,10 @@ io.on("connection", function (socket) {
 
     const recipeentuser = userdetails.get(to);
 
+    if (!recipeentuser) {
+      console.log("not found a to user re ");
+    }
+
     if (recipeentuser) {
       io.to(to).emit("privatemessages", {
         from: socket.id,
@@ -118,6 +141,25 @@ io.on("connection", function (socket) {
       });
     }
   });
+
+  socket.on(
+    "sendimages",
+    function ({
+      from,
+      to,
+      imageUrl,
+    }: {
+      from: string;
+      to: string;
+      imageUrl: string;
+    }) {
+      console.log(
+        `recieved message from ${from} and the message is ${imageUrl}`
+      );
+
+      io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
+    }
+  );
 });
 
 server.listen(3000, function () {
