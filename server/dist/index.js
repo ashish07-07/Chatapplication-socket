@@ -1,10 +1,20 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const path_1 = __importDefault(require("path"));
+const client_1 = __importDefault(require("./redisclient/client"));
 const uuid_1 = require("uuid");
 const socket_io_1 = require("socket.io");
 const http_1 = __importDefault(require("http"));
@@ -28,30 +38,54 @@ const io = new socket_io_1.Server(server, {
     },
 });
 const sessionStore = new Map();
+// io.use((socket: Socket, next) => {
+//   const customSocket = socket as CustomSocket;
+//   const sessionID = customSocket.handshake.auth.sessionID;
+//   const emailid = customSocket.handshake.auth.email;
+//   const name = customSocket.handshake.auth.name;
+//   console.log("custom handshake auth details noodu");
+//   console.log(customSocket.handshake.auth);
+//   if (sessionID) {
+//     const session = sessionStore.get(sessionID);
+//     if (session) {
+//       console.log("id ede marre ");
+//       console.log("session id exists");
+//       customSocket.sessionID = sessionID;
+//       customSocket.userID = session.userID;
+//       // socket.emit("idexist", { socket: socket, id: socket.id });
+//       return next();
+//     }
+//   }
+//   console.log("session id does not exist");
+//   const newSessionID = uuidv4();
+//   customSocket.sessionID = newSessionID;
+//   customSocket.userID = uuidv4();
+//   console.log(sessionID);
+//   console.log(customSocket.userID);
+//   sessionStore.set(customSocket.sessionID, {
+//     userID: customSocket.userID,
+//     customSocket,
+//   });
+//   customSocket.emit("session", {
+//     sessionID: customSocket.sessionID,
+//     userID: customSocket.userID,
+//   });
+//   next();
+// });
 io.use((socket, next) => {
     const customSocket = socket;
     const sessionID = customSocket.handshake.auth.sessionID;
-    const emailid = customSocket.handshake.auth.email;
     const name = customSocket.handshake.auth.name;
-    console.log("custom handshake auth details noodu");
-    console.log(customSocket.handshake.auth);
-    if (sessionID) {
+    if (sessionID && sessionStore.has(sessionID)) {
         const session = sessionStore.get(sessionID);
-        if (session) {
-            console.log("id ede marre ");
-            console.log("session id exists");
-            customSocket.sessionID = sessionID;
-            customSocket.userID = session.userID;
-            // socket.emit("idexist", { socket: socket, id: socket.id });
-            return next();
-        }
+        customSocket.sessionID = sessionID;
+        customSocket.userID = session.userID;
+        return next();
     }
-    console.log("session id does not exist");
+    // Only create a new session if the session ID is missing or invalid
     const newSessionID = (0, uuid_1.v4)();
     customSocket.sessionID = newSessionID;
     customSocket.userID = (0, uuid_1.v4)();
-    console.log(sessionID);
-    console.log(customSocket.userID);
     sessionStore.set(customSocket.sessionID, {
         userID: customSocket.userID,
         customSocket,
@@ -63,43 +97,83 @@ io.use((socket, next) => {
     next();
 });
 io.on("connection", function (socket) {
-    const customSocket = socket;
-    const existingre = socket.handshake.auth.sessionID;
-    console.log("a user connected");
-    console.log(socket.id);
-    socket.on("newusers", function (data) {
-        console.log(data);
-    });
-    socket.on("message", function (data, isBinary) {
-        console.log(` the message that ${socket.id} sent is ${data.messages}`);
-    });
-    // userdetails.set("email",{username:name,socket:socket});
-    console.log(`are ashih beta wts this re beta ${customSocket}`);
-    userdetails.set(customSocket.id, socket);
-    console.log(`user map details is ${userdetails}`);
-    userdetails.forEach(function (val) {
-        console.log("each socket id is ");
-        console.log(val.id);
-    });
-    // userdetails.set(socket.id,{email:});
-    socket.on("privatemessages", function ({ to, message }) {
-        console.log("someone sent the messages");
-        console.log(`messages is ${message}`);
-        console.log(to);
-        const recipeentuser = userdetails.get(to);
-        if (!recipeentuser) {
-            console.log("not found a to user re ");
+    return __awaiter(this, void 0, void 0, function* () {
+        const customSocket = socket;
+        const existingre = socket.handshake.auth.sessionID;
+        const ssid = socket.handshake.auth.sessionID;
+        const name = socket.handshake.auth.name;
+        const phonenumber = socket.handshake.auth.phonenumber;
+        console.log(`name is ${name}`);
+        console.log(`my phonenumber is ${phonenumber}`);
+        // await redisClient.rPush(socket.id, customSocket);
+        // await redisClient.rPush(socket.id, customSocket);
+        // await redisClient.rPush(existingre, socket.id);
+        // const userdetails = JSON.parse({ name, phonenumber });
+        // const userdetails = JSON.stringify({ name, phonenumber });
+        // if (ssid) {
+        //   // i dont want to push the user to redis insted i need tu update or replace theat session with socket id and the name
+        // }
+        // await redisClient.rPush(
+        //   "new user",
+        //   JSON.stringify({ id: socket.id, name, phonenumber, existingre })
+        // );
+        if (!ssid) {
+            console.error("Session ID is missing, cannot set value in Redis.");
+            return;
         }
-        if (recipeentuser) {
-            io.to(to).emit("privatemessages", {
-                from: socket.id,
-                message,
+        const userDetailss = JSON.stringify({
+            name: name,
+            socketid: socket.id,
+            phonenumber: phonenumber,
+        });
+        try {
+            yield client_1.default.SET(ssid, userDetailss);
+            console.log("stored in redis");
+        }
+        catch (e) {
+            console.log(e);
+        }
+        console.log("a user connected");
+        console.log(socket.id);
+        socket.on("newusers", function (data) {
+            console.log(data);
+        });
+        socket.on("message", function (data, isBinary) {
+            console.log(` the message that ${socket.id} sent is ${data.messages}`);
+        });
+        // userdetails.set("email",{username:name,socket:socket});
+        console.log(`are ashih beta wts this re beta ${customSocket}`);
+        userdetails.set(customSocket.id, socket);
+        console.log(`user map details is ${userdetails}`);
+        userdetails.forEach(function (val) {
+            console.log("each socket id is ");
+            console.log(val.id);
+        });
+        // userdetails.set(socket.id,{email:});
+        socket.on("privatemessages", function ({ to, message }) {
+            console.log("someone sent the messages");
+            console.log(`messages is ${message}`);
+            console.log(to);
+            socket.on("disconnect", function () {
+                return __awaiter(this, void 0, void 0, function* () {
+                    yield client_1.default.lRem("newuser", 0, socket.id);
+                });
             });
-        }
-    });
-    socket.on("sendimages", function ({ from, to, imageUrl, }) {
-        console.log(`recieved message from ${from} and the message is ${imageUrl}`);
-        io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
+            const recipeentuser = userdetails.get(to);
+            if (!recipeentuser) {
+                console.log("not found a to user re ");
+            }
+            if (recipeentuser) {
+                io.to(to).emit("privatemessages", {
+                    from: socket.id,
+                    message,
+                });
+            }
+        });
+        socket.on("sendimages", function ({ from, to, imageUrl, }) {
+            console.log(`recieved message from ${from} and the message is ${imageUrl}`);
+            io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
+        });
     });
 });
 server.listen(3000, function () {
