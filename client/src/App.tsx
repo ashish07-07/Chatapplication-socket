@@ -1,6 +1,9 @@
 import { useRef, useState, useEffect } from "react";
 import io from "socket.io-client";
 import axios from "axios";
+import prisma from "./../../server/src/db/index";
+
+import redisClient from "./../../server/src/redisclient/client";
 
 function App() {
   const usersocket = useRef<SocketIOClient.Socket | null>(null);
@@ -18,8 +21,31 @@ function App() {
           sessionID: sessionID || null,
           email: "bkashish077",
           name: "Ashish",
+          phonenumber: 9900501098,
         },
       });
+
+      // async function getallredisdetails() {
+      //   const keys = await redisClient.KEYS("*");
+
+      //   if (keys.length === 0) {
+      //     console.log("NO KEYS FOUND");
+      //     return;
+      //   }
+
+      //   const values = await redisClient.MGET(keys);
+
+      //   const result = keys.map(function (val, index) {
+      //     return {
+      //       keyval: val,
+      //       valueis: values[index],
+      //     };
+      //   });
+
+      //   console.log(result);
+      // }
+
+      // getallredisdetails();
 
       usersocket.current = socket;
 
@@ -45,6 +71,7 @@ function App() {
 
       socket.on("disconnect", () => {
         console.log("Disconnected");
+
         usersocket.current = null;
       });
 
@@ -57,15 +84,20 @@ function App() {
     }
   }, [sessionID]);
 
-  const handleSendMessage = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSendMessage = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     const socket = usersocket.current;
 
     if (socket) {
-      socket.emit("privatemessages", {
-        to: "hNi0LXRqr8KHcgBPAAAF",
-        message: message,
-      });
+      try {
+        socket.emit("privatemessages", {
+          to: "hNi0LXRqr8KHcgBPAAAF",
+          message: message,
+        });
+      } catch (e) {
+        console.log(e);
+      }
+
       console.log(`Message sent: ${message}`);
     } else {
       console.log("Socket is not connected");
