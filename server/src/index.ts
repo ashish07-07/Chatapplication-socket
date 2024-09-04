@@ -12,6 +12,9 @@ import { Socket } from "socket.io";
 import { userInfo } from "os";
 import router from "./routes/fileupload";
 import { disconnect } from "process";
+import user from "./routes/clientdetails";
+import signuproute from "./routes/signup";
+import signin from "./routes/signin";
 
 interface customsocket extends Socket {
   sessionID: string;
@@ -33,6 +36,12 @@ app.use("/images", express.static(path.join(__dirname, "..", "..", "images")));
 
 app.use("/uploads", router);
 
+app.use("/user", user);
+
+app.use("/user", signuproute);
+
+app.use("/user", signin);
+
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -49,53 +58,6 @@ interface CustomSocket extends Socket {
   sessionID: string;
   userID: string;
 }
-
-// io.use((socket: Socket, next) => {
-//   const customSocket = socket as CustomSocket;
-
-//   const sessionID = customSocket.handshake.auth.sessionID;
-
-//   const emailid = customSocket.handshake.auth.email;
-
-//   const name = customSocket.handshake.auth.name;
-
-//   console.log("custom handshake auth details noodu");
-
-//   console.log(customSocket.handshake.auth);
-//   if (sessionID) {
-//     const session = sessionStore.get(sessionID);
-
-//     if (session) {
-//       console.log("id ede marre ");
-//       console.log("session id exists");
-
-//       customSocket.sessionID = sessionID;
-//       customSocket.userID = session.userID;
-
-//       // socket.emit("idexist", { socket: socket, id: socket.id });
-
-//       return next();
-//     }
-//   }
-
-//   console.log("session id does not exist");
-//   const newSessionID = uuidv4();
-//   customSocket.sessionID = newSessionID;
-//   customSocket.userID = uuidv4();
-//   console.log(sessionID);
-//   console.log(customSocket.userID);
-//   sessionStore.set(customSocket.sessionID, {
-//     userID: customSocket.userID,
-//     customSocket,
-//   });
-
-//   customSocket.emit("session", {
-//     sessionID: customSocket.sessionID,
-//     userID: customSocket.userID,
-//   });
-
-//   next();
-// });
 
 io.use((socket: Socket, next) => {
   const customSocket = socket as CustomSocket;
@@ -135,21 +97,6 @@ io.on("connection", async function (socket) {
   console.log(`name is ${name}`);
   console.log(`my phonenumber is ${phonenumber}`);
 
-  // await redisClient.rPush(socket.id, customSocket);
-  // await redisClient.rPush(socket.id, customSocket);
-
-  // await redisClient.rPush(existingre, socket.id);
-  // const userdetails = JSON.parse({ name, phonenumber });
-  // const userdetails = JSON.stringify({ name, phonenumber });
-
-  // if (ssid) {
-  //   // i dont want to push the user to redis insted i need tu update or replace theat session with socket id and the name
-  // }
-  // await redisClient.rPush(
-  //   "new user",
-  //   JSON.stringify({ id: socket.id, name, phonenumber, existingre })
-  // );
-
   if (!ssid) {
     console.error("Session ID is missing, cannot set value in Redis.");
     return;
@@ -157,12 +104,13 @@ io.on("connection", async function (socket) {
 
   const userDetailss = JSON.stringify({
     name: name,
-    socketid: socket.id,
+    socketid: customSocket.id,
     phonenumber: phonenumber,
   });
 
   try {
     await redisClient.SET(ssid, userDetailss);
+
     console.log("stored in redis");
   } catch (e) {
     console.log(e);
@@ -178,6 +126,8 @@ io.on("connection", async function (socket) {
   socket.on("message", function (data, isBinary) {
     console.log(` the message that ${socket.id} sent is ${data.messages}`);
   });
+
+  // socket.emit("userdetails",)
 
   // userdetails.set("email",{username:name,socket:socket});
 
@@ -198,7 +148,7 @@ io.on("connection", async function (socket) {
     console.log(to);
 
     socket.on("disconnect", async function () {
-      await redisClient.lRem("newuser", 0, socket.id);
+      await redisClient.del(ssid);
     });
 
     const recipeentuser = userdetails.get(to);

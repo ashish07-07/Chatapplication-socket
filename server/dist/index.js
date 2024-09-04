@@ -19,6 +19,9 @@ const uuid_1 = require("uuid");
 const socket_io_1 = require("socket.io");
 const http_1 = __importDefault(require("http"));
 const fileupload_1 = __importDefault(require("./routes/fileupload"));
+const clientdetails_1 = __importDefault(require("./routes/clientdetails"));
+const signup_1 = __importDefault(require("./routes/signup"));
+const signin_1 = __importDefault(require("./routes/signin"));
 const userdetails = new Map();
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
@@ -29,6 +32,9 @@ const imagesDirectory = "D:/Chatapplication-socket/server/images";
 app.use("/images", express_1.default.static(imagesDirectory));
 app.use("/images", express_1.default.static(path_1.default.join(__dirname, "..", "..", "images")));
 app.use("/uploads", fileupload_1.default);
+app.use("/user", clientdetails_1.default);
+app.use("/user", signup_1.default);
+app.use("/user", signin_1.default);
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
@@ -38,40 +44,6 @@ const io = new socket_io_1.Server(server, {
     },
 });
 const sessionStore = new Map();
-// io.use((socket: Socket, next) => {
-//   const customSocket = socket as CustomSocket;
-//   const sessionID = customSocket.handshake.auth.sessionID;
-//   const emailid = customSocket.handshake.auth.email;
-//   const name = customSocket.handshake.auth.name;
-//   console.log("custom handshake auth details noodu");
-//   console.log(customSocket.handshake.auth);
-//   if (sessionID) {
-//     const session = sessionStore.get(sessionID);
-//     if (session) {
-//       console.log("id ede marre ");
-//       console.log("session id exists");
-//       customSocket.sessionID = sessionID;
-//       customSocket.userID = session.userID;
-//       // socket.emit("idexist", { socket: socket, id: socket.id });
-//       return next();
-//     }
-//   }
-//   console.log("session id does not exist");
-//   const newSessionID = uuidv4();
-//   customSocket.sessionID = newSessionID;
-//   customSocket.userID = uuidv4();
-//   console.log(sessionID);
-//   console.log(customSocket.userID);
-//   sessionStore.set(customSocket.sessionID, {
-//     userID: customSocket.userID,
-//     customSocket,
-//   });
-//   customSocket.emit("session", {
-//     sessionID: customSocket.sessionID,
-//     userID: customSocket.userID,
-//   });
-//   next();
-// });
 io.use((socket, next) => {
     const customSocket = socket;
     const sessionID = customSocket.handshake.auth.sessionID;
@@ -105,25 +77,13 @@ io.on("connection", function (socket) {
         const phonenumber = socket.handshake.auth.phonenumber;
         console.log(`name is ${name}`);
         console.log(`my phonenumber is ${phonenumber}`);
-        // await redisClient.rPush(socket.id, customSocket);
-        // await redisClient.rPush(socket.id, customSocket);
-        // await redisClient.rPush(existingre, socket.id);
-        // const userdetails = JSON.parse({ name, phonenumber });
-        // const userdetails = JSON.stringify({ name, phonenumber });
-        // if (ssid) {
-        //   // i dont want to push the user to redis insted i need tu update or replace theat session with socket id and the name
-        // }
-        // await redisClient.rPush(
-        //   "new user",
-        //   JSON.stringify({ id: socket.id, name, phonenumber, existingre })
-        // );
         if (!ssid) {
             console.error("Session ID is missing, cannot set value in Redis.");
             return;
         }
         const userDetailss = JSON.stringify({
             name: name,
-            socketid: socket.id,
+            socketid: customSocket.id,
             phonenumber: phonenumber,
         });
         try {
@@ -141,6 +101,7 @@ io.on("connection", function (socket) {
         socket.on("message", function (data, isBinary) {
             console.log(` the message that ${socket.id} sent is ${data.messages}`);
         });
+        // socket.emit("userdetails",)
         // userdetails.set("email",{username:name,socket:socket});
         console.log(`are ashih beta wts this re beta ${customSocket}`);
         userdetails.set(customSocket.id, socket);
@@ -156,7 +117,7 @@ io.on("connection", function (socket) {
             console.log(to);
             socket.on("disconnect", function () {
                 return __awaiter(this, void 0, void 0, function* () {
-                    yield client_1.default.lRem("newuser", 0, socket.id);
+                    yield client_1.default.del(ssid);
                 });
             });
             const recipeentuser = userdetails.get(to);

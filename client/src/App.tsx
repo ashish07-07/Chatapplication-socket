@@ -1,9 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import io from "socket.io-client";
 import axios from "axios";
-import prisma from "./../../server/src/db/index";
-
-import redisClient from "./../../server/src/redisclient/client";
 
 function App() {
   const usersocket = useRef<SocketIOClient.Socket | null>(null);
@@ -25,28 +22,6 @@ function App() {
         },
       });
 
-      // async function getallredisdetails() {
-      //   const keys = await redisClient.KEYS("*");
-
-      //   if (keys.length === 0) {
-      //     console.log("NO KEYS FOUND");
-      //     return;
-      //   }
-
-      //   const values = await redisClient.MGET(keys);
-
-      //   const result = keys.map(function (val, index) {
-      //     return {
-      //       keyval: val,
-      //       valueis: values[index],
-      //     };
-      //   });
-
-      //   console.log(result);
-      // }
-
-      // getallredisdetails();
-
       usersocket.current = socket;
 
       socket.on("session", ({ sessionID }: { sessionID: string }) => {
@@ -58,7 +33,16 @@ function App() {
         console.log(
           `A client with socket ID ${socket.id} connected to server with session ID ${sessionID}`
         );
+        Getuserdetails();
       });
+
+      async function Getuserdetails() {
+        const response = await axios.get(
+          "http://localhost:3000/user/getuserdetails"
+        );
+
+        console.log(response.data);
+      }
 
       socket.on(
         "sendimages",

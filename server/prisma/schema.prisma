@@ -16,3 +16,15 @@ model message{
    to String
    message String
 }
+
+model User{
+
+id Int @id @default(autoincrement())
+email String @unique
+name String
+phonenumber String @unique
+password String
+
+}
+
+
