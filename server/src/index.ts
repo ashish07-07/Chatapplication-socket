@@ -15,6 +15,7 @@ import { disconnect } from "process";
 import user from "./routes/clientdetails";
 import signuproute from "./routes/signup";
 import signin from "./routes/signin";
+import cors from "cors";
 
 interface customsocket extends Socket {
   sessionID: string;
@@ -46,7 +47,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "http://localhost:3001"],
     methods: ["GET", "POST"],
     credentials: true,
   },

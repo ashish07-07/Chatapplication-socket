@@ -33,6 +33,7 @@ route.post("/signup", function (req, res) {
                 },
             });
             const token = jsonwebtoken_1.default.sign({ email }, "ashish");
+            res.set("Access-Control-Allow-Origin", "http://localhost:3001");
             return res.status(201).json({
                 message: "Sign up successful",
                 token,

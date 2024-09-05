@@ -29,6 +29,8 @@ route.post("/signup", async function (req: Request, res: Response) {
 
     const token = jwt.sign({ email }, "ashish");
 
+    res.set("Access-Control-Allow-Origin", "http://localhost:3001");
+
     return res.status(201).json({
       message: "Sign up successful",
       token,
