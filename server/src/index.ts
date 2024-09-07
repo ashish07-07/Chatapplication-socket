@@ -25,6 +25,8 @@ interface customsocket extends Socket {
 const userdetails = new Map();
 const app = express();
 
+app.use(cors());
+
 app.use(express.json());
 
 console.log(path.join(__dirname, "..", "images"));
