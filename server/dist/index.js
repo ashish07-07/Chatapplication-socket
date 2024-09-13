@@ -56,7 +56,6 @@ io.use((socket, next) => {
         customSocket.userID = session.userID;
         return next();
     }
-    // Only create a new session if the session ID is missing or invalid
     const newSessionID = (0, uuid_1.v4)();
     customSocket.sessionID = newSessionID;
     customSocket.userID = (0, uuid_1.v4)();
@@ -103,8 +102,6 @@ io.on("connection", function (socket) {
         socket.on("message", function (data, isBinary) {
             console.log(` the message that ${socket.id} sent is ${data.messages}`);
         });
-        // socket.emit("userdetails",)
-        // userdetails.set("email",{username:name,socket:socket});
         console.log(`are ashih beta wts this re beta ${customSocket}`);
         userdetails.set(customSocket.id, socket);
         console.log(`user map details is ${userdetails}`);
@@ -112,7 +109,6 @@ io.on("connection", function (socket) {
             console.log("each socket id is ");
             console.log(val.id);
         });
-        // userdetails.set(socket.id,{email:});
         socket.on("privatemessages", function ({ to, message }) {
             console.log("someone sent the messages");
             console.log(`messages is ${message}`);

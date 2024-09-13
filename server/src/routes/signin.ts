@@ -8,7 +8,7 @@ import bcrypt from "bcrypt";
 
 router.post(
   "/signin",
-  Tokenmiddleware,
+  // Tokenmiddleware,
   async function (req: Request, res: Response) {
     const { email, password } = req.body;
 

@@ -27,7 +27,7 @@ router.get("/getuserdetails", function (req, res) {
                 });
             }
             const values = yield client_1.default.MGET(keys);
-            res.set("Access-Control-Allow-Origin", "http://localhost:5173");
+            res.set("Access-Control-Allow-Origin", "http://localhost:3001");
             const result = keys.map(function (val, index) {
                 return {
                     keyssid: val,

@@ -18,7 +18,7 @@ router.get("/getuserdetails", async function (req: Request, res: Response) {
 
     const values = await redisClient.MGET(keys);
 
-    res.set("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.set("Access-Control-Allow-Origin", "http://localhost:3001");
 
     const result = keys.map(function (val, index) {
       return {

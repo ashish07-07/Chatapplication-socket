@@ -33,6 +33,7 @@ route.post("/signup", async function (req: Request, res: Response) {
 
     return res.status(201).json({
       message: "Sign up successful",
+      user: userdetails,
       token,
     });
   } catch (e) {

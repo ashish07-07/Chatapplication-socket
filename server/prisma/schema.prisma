@@ -10,22 +10,30 @@ datasource db {
 }
 
 
-model message{
-   id Int @id @default(autoincrement())
-   from String
-   to String
-   message String
+
+
+
+
+model Message {
+   id               Int      @id @default(autoincrement())
+   fromsocketid     String
+   tosocketid       String
+   fromphonenumber  String
+   tophonenumber    String
+   message          String
+   isread           Boolean  @default(false)
+   timestamp        DateTime @default(now())
+
+   fromuser         User     @relation("sentMessages", fields: [fromphonenumber], references: [phonenumber])
+   touser           User     @relation("receivedMessages", fields: [tophonenumber], references: [phonenumber])
 }
 
-model User{
-
-id Int @id @default(autoincrement())
-email String @unique
-name String
-phonenumber String @unique
-password String
-
+model User {
+   id Int @default(autoincrement())
+   phonenumber      String   @id @unique
+   email            String   @unique
+   name             String
+   password         String
+   sentMessages     Message[] @relation("sentMessages")
+   receivedMessages Message[] @relation("receivedMessages")
 }
-
-
-

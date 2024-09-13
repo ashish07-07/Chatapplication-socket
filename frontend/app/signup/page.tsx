@@ -1,79 +1,6 @@
-// "use client";
-// import axios from "axios";
-// import { useActionState, useState } from "react";
-
-// export default function Signup() {
-//   function formachanges(e: any) {
-//     const { name, value } = e.target;
-
-//     setformdata({
-//       ...form,
-//       [name]: value,
-//     });
-//   }
-
-//   const [form, setformdata] = useState({
-//     email: "",
-//     password: "",
-//     name: "",
-//     phonenumber: "",
-//   });
-//   return (
-//     <div className="flex flex-col items-center justify-center h-screen bg-white ">
-//       <div className="flex flex-col">
-//         <input
-//           type="text"
-//           name="name"
-//           placeholder="enter your name"
-//           onChange={formachanges}
-//         ></input>
-//         <input
-//           type="email"
-//           name="email"
-//           onChange={formachanges}
-//           placeholder="enter your email"
-//         ></input>
-//         <input
-//           onChange={formachanges}
-//           type="password"
-//           name="password"
-//           placeholder="enter your password"
-//         ></input>
-//         <input
-//           onChange={formachanges}
-//           type="text"
-//           name="phonenumber"
-//           placeholder="enter your phonenumber"
-//         ></input>
-
-//         <button
-//           className="text-black"
-//           onClick={async function () {
-//             const { email, password, name, phonenumber } = form;
-
-//             if (!email || !password || !name || !phonenumber) {
-//               alert("enter all the fields ");
-//               return;
-//             }
-
-//             const response = await axios.post(
-//               "http://localhost:3000/user/signup",
-//               form
-//             );
-//             console.log(response.data.token);
-//             localStorage.setItem("token",response.data.token)
-//           }}
-//         >
-//           {" "}
-//           Submit
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
 "use client";
 import axios from "axios";
+import Link from "next/link";
 import { useState } from "react";
 
 export default function Signup() {
@@ -152,6 +79,12 @@ export default function Signup() {
         >
           Submit
         </button>
+        <Link href={"/signinpage"}>
+          <button className="w-full bg-orange-500 text-white p-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-4">
+            {" "}
+            Already Registerd ? Signin then
+          </button>
+        </Link>
       </div>
     </div>
   );

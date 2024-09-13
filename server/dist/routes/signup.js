@@ -36,6 +36,7 @@ route.post("/signup", function (req, res) {
             res.set("Access-Control-Allow-Origin", "http://localhost:3001");
             return res.status(201).json({
                 message: "Sign up successful",
+                user: userdetails,
                 token,
             });
         }

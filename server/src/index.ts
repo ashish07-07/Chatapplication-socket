@@ -74,7 +74,6 @@ io.use((socket: Socket, next) => {
     return next();
   }
 
-  // Only create a new session if the session ID is missing or invalid
   const newSessionID = uuidv4();
   customSocket.sessionID = newSessionID;
   customSocket.userID = uuidv4();
@@ -97,6 +96,7 @@ io.on("connection", async function (socket) {
   const ssid = socket.handshake.auth.sessionID;
   const name = socket.handshake.auth.name;
   const phonenumber = socket.handshake.auth.phonenumber;
+  const email = socket.handshake.auth.email;
   console.log(`name is ${name}`);
   console.log(`my phonenumber is ${phonenumber}`);
 
@@ -109,6 +109,7 @@ io.on("connection", async function (socket) {
     name: name,
     socketid: customSocket.id,
     phonenumber: phonenumber,
+    email: email,
   });
 
   try {
@@ -130,10 +131,6 @@ io.on("connection", async function (socket) {
     console.log(` the message that ${socket.id} sent is ${data.messages}`);
   });
 
-  // socket.emit("userdetails",)
-
-  // userdetails.set("email",{username:name,socket:socket});
-
   console.log(`are ashih beta wts this re beta ${customSocket}`);
   userdetails.set(customSocket.id, socket);
   console.log(`user map details is ${userdetails}`);
@@ -142,8 +139,6 @@ io.on("connection", async function (socket) {
     console.log("each socket id is ");
     console.log(val.id);
   });
-
-  // userdetails.set(socket.id,{email:});
 
   socket.on("privatemessages", function ({ to, message }) {
     console.log("someone sent the messages");

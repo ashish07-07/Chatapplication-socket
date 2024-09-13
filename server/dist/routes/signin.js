@@ -14,10 +14,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const db_1 = __importDefault(require("../db"));
-const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 const bcrypt_1 = __importDefault(require("bcrypt"));
-router.post("/signin", auth_1.Tokenmiddleware, function (req, res) {
+router.post("/signin", 
+// Tokenmiddleware,
+function (req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         const { email, password } = req.body;
         const userfound = yield db_1.default.user.findFirst({
