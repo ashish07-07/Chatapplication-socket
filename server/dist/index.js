@@ -76,6 +76,7 @@ io.on("connection", function (socket) {
         const ssid = socket.handshake.auth.sessionID;
         const name = socket.handshake.auth.name;
         const phonenumber = socket.handshake.auth.phonenumber;
+        const email = socket.handshake.auth.email;
         console.log(`name is ${name}`);
         console.log(`my phonenumber is ${phonenumber}`);
         if (!ssid) {
@@ -86,6 +87,7 @@ io.on("connection", function (socket) {
             name: name,
             socketid: customSocket.id,
             phonenumber: phonenumber,
+            email: email,
         });
         try {
             yield client_1.default.SET(ssid, userDetailss);

@@ -1,15 +1,24 @@
 // "use client";
-// import { useRef, useState, useEffect } from "react";
+// import { useRef, useState, useEffect, useCallback } from "react";
 // import io from "socket.io-client";
 // import axios from "axios";
 // import { useSession } from "next-auth/react";
+// import { json } from "stream/consumers";
+
+// import { Userdetails } from "../components/userdeatils";
+// import { userInfo } from "os";
 
 // function App() {
 //   const usersocket = useRef<SocketIOClient.Socket | null>(null);
+
 //   const [message, setMessage] = useState<string>("");
 //   const [sessionID, setSessionID] = useState<string | null>(
 //     localStorage.getItem("sessionID") || null
 //   );
+
+//   const [allusers, setallusers] = useState<userdetails[]>([]);
+
+//   const [tomessage, settomessage] = useState<messagetotemplate>();
 
 //   interface Signuserdetails {
 //     name: string;
@@ -17,32 +26,61 @@
 //     id: string;
 //     phonenumber: string;
 //   }
+//   interface userdetails {
+//     keyssid: string;
+//     userdetails: {
+//       name: string;
+//       socketid: string;
+//       phonenumber: string;
+//     };
+//   }
 
-//   const [socketiamge, setimage] = useState<File | null>(null);
-//   const [userdetails, setuserdetsils] = useState<Signuserdetails | null>(null);
+//   interface messagetotemplate {
+//     name: string;
+//     socketid: string;
+//     phonenumber: string;
+//     email: string;
+//   }
+
+//   // const  userinfo= useCallback((userdetails: any) {
+//   //   console.log("i got clicked now");
+//   //   console.log(userdetails);
+//   //   // settomessage(userdetails);
+//   //   //messagetotemplate
+//   // }
+
+//   const userinfo = useCallback(
+//     (userdetails: messagetotemplate) => {
+//       console.log("i got clicked now");
+//       settomessage(userdetails);
+//     },
+//     [tomessage]
+//   );
+
+//   const [socketImage, setImage] = useState<File | null>(null);
+//   // const [userDetails, setUserDetails] = useState<Signuserdetails | null>(null);
+
+//   // Use the session hook to get the session data
+
+//   const [cursockid, setcursockid] = useState<SocketIOClient.Socket | null>(
+//     null
+//   );
 
 //   const { data: session, status } = useSession();
-//   console.log(`the returned session is present here ${session?.user?.name}`);
-//   console.log(session?.user.phonenumber);
 
 //   useEffect(() => {
-//     if (
-//       session &&
-//       session.user &&
-//       status === "authenticated" &&
-//       !usersocket.current
-//     ) {
-//       console.log("i am making a connection now ");
+//     if (status === "authenticated" && session?.user && !usersocket.current) {
 //       const socket = io("http://localhost:3000", {
 //         auth: {
 //           sessionID: sessionID || null,
-//           email: session.user?.email,
-//           name: session?.user?.name,
+//           email: session.user.email,
+//           name: session.user.name,
 //           phonenumber: session.user.phonenumber,
 //         },
 //       });
 
 //       usersocket.current = socket;
+//       setcursockid(socket); // here i have the current socket id
 
 //       socket.on("session", ({ sessionID }: { sessionID: string }) => {
 //         setSessionID(sessionID);
@@ -57,25 +95,36 @@
 //       });
 
 //       const Getuserdetails = async () => {
-//         const response = await axios.get(
-//           "http://localhost:3000/user/getuserdetails"
-//         );
+//         try {
+//           const response = await axios.get(
+//             "http://localhost:3000/user/getuserdetails"
+//           );
+//           console.log(response.data);
+//           console.log(response.data.userdetails);
 
-//         console.log(response.data);
+//           // console.log(`the respose i get is ${response.data.keyssid}`);
+//           const details = response.data.userdetails;
+
+//           const Allotherusers = details.filter(function (val: any) {
+//             return val.keyssid != sessionID;
+//           });
+
+//           console.log(Allotherusers);
+//           setallusers(Allotherusers);
+//         } catch (error) {
+//           console.error("Error fetching user details:", error);
+//         }
 //       };
 
 //       socket.on(
 //         "sendimages",
 //         function ({ imageUrl, from }: { imageUrl: string; from: string }) {
-//           console.log(
-//             `i got a image url from ${from} and the url is ${imageUrl}`
-//           );
+//           console.log(`Received image from ${from}: ${imageUrl}`);
 //         }
 //       );
 
 //       socket.on("disconnect", () => {
 //         console.log("Disconnected");
-
 //         usersocket.current = null;
 //       });
 
@@ -86,7 +135,7 @@
 //         }
 //       );
 //     }
-//   }, [sessionID]);
+//   }, [sessionID, session, status]);
 
 //   const handleSendMessage = async (e: React.MouseEvent<HTMLButtonElement>) => {
 //     e.preventDefault();
@@ -98,116 +147,129 @@
 //           to: "hNi0LXRqr8KHcgBPAAAF",
 //           message: message,
 //         });
+//         console.log(`Message sent: ${message}`);
 //       } catch (e) {
-//         console.log(e);
+//         console.error("Error sending message:", e);
 //       }
-
-//       console.log(`Message sent: ${message}`);
 //     } else {
 //       console.log("Socket is not connected");
 //     }
 //   };
 
 //   return (
-//     <div>
-//       WebSocket Connection
-//       <input
-//         type="text"
-//         value={message}
-//         onChange={(e) => setMessage(e.target.value)}
-//       />
-//       <button onClick={handleSendMessage}>Send Message</button>
-//       <h2> Send Images </h2>
-//       <input
-//         type="file"
-//         name="image"
-//         accept="image/**"
-//         onChange={function (e) {
-//           if (e.target.files && e.target.files[0]) {
-//             setimage(e.target.files[0]);
-//           }
-//         }}
-//       />
-//       <button
-//         onClick={async (e) => {
-//           e.preventDefault();
-
-//           if (!socketiamge) {
-//             console.log("No image selected");
-//             return;
-//           }
-
-//           try {
-//             const formData = new FormData();
-//             formData.append("image", socketiamge);
-
-//             const response = await axios.post(
-//               "http://localhost:3000/uploads/images",
-//               formData,
-//               {
-//                 headers: {
-//                   "Content-Type": "multipart/form-data",
-//                 },
-//               }
-//             );
-
-//             console.log(response.data);
-//             if (
-//               response.data &&
-//               (response.data as { imageUrl: string }).imageUrl
-//             ) {
-//               console.log(
-//                 "Image sent successfully:",
-//                 (response.data as { imageUrl: string }).imageUrl
+//     <div className="grid grid-cols-2 h-screen">
+//       <div>
+//         {allusers && (
+//           <div>
+//             {allusers.map(function (val: any) {
+//               const userdetails = JSON.parse(val.userdetails);
+//               console.log(userdetails);
+//               return (
+//                 <div key={val.keyssid} className="">
+//                   <button
+//                     onClick={function () {
+//                       console.log("the user selected me now ");
+//                       userinfo(userdetails);
+//                     }}
+//                   >
+//                     <h2>Socketid: {userdetails.socketid}</h2>
+//                     <h2>Name: {userdetails.name}</h2>
+//                     <h2>Phonenumber: {userdetails.phonenumber}</h2>
+//                   </button>
+//                 </div>
 //               );
+//             })}
+//           </div>
+//         )}
+//       </div>
+
+//       <div>
+//         WebSocket Connection
+//         <input
+//           type="text"
+//           value={message}
+//           onChange={(e) => setMessage(e.target.value)}
+//         />
+//         <button onClick={handleSendMessage}>Send Message</button>
+//         <h2> Send Images </h2>
+//         <input
+//           type="file"
+//           name="image"
+//           accept="image/**"
+//           onChange={function (e) {
+//             if (e.target.files && e.target.files[0]) {
+//               setImage(e.target.files[0]);
+//             }
+//           }}
+//         />
+//         <button
+//           onClick={async (e) => {
+//             e.preventDefault();
+
+//             if (!socketImage) {
+//               console.log("No image selected");
+//               return;
 //             }
 
-//             const socket = usersocket.current;
+//             try {
+//               const formData = new FormData();
+//               formData.append("image", socketImage);
 
-//             if (socket) {
-//               socket.emit("sendimages", {
-//                 from: socket.id,
-//                 to: "hNi0LXRqr8KHcgBPAAAF",
-//                 imageUrl: (response.data as { imageUrl: string }).imageUrl,
-//               });
+//               const response = await axios.post(
+//                 "http://localhost:3000/uploads/images",
+//                 formData,
+//                 {
+//                   headers: {
+//                     "Content-Type": "multipart/form-data",
+//                   },
+//                 }
+//               );
+
+//               const { imageUrl } = response.data;
+//               console.log("Image sent successfully:", imageUrl);
+
+//               const socket = usersocket.current;
+//               if (socket) {
+//                 socket.emit("sendimages", {
+//                   from: socket.id,
+//                   to: "hNi0LXRqr8KHcgBPAAAF",
+//                   imageUrl: imageUrl,
+//                 });
+//               }
+//             } catch (error) {
+//               console.error("Error uploading image:", error);
 //             }
-//           } catch (error) {
-//             console.error("Error uploading image:", error);
-//           }
-//         }}
-//       >
-//         Send the image
-//       </button>
+//           }}
+//         >
+//           Send the image
+//         </button>
+//       </div>
 //     </div>
 //   );
 // }
 
 // export default App;
 
-///////////////////////////
+/////////////////
 
 "use client";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import io from "socket.io-client";
 import axios from "axios";
 import { useSession } from "next-auth/react";
-import { json } from "stream/consumers";
 
 function App() {
   const usersocket = useRef<SocketIOClient.Socket | null>(null);
+
   const [message, setMessage] = useState<string>("");
   const [sessionID, setSessionID] = useState<string | null>(
     localStorage.getItem("sessionID") || null
   );
 
   const [allusers, setallusers] = useState<userdetails[]>([]);
+  const [tomessage, settomessage] = useState<messagetotemplate | null>(null); // Add a null initial state
 
-  interface Signuserdetails {
-    name: string;
-    email: string;
-    id: string;
-    phonenumber: string;
-  }
+  // Define interfaces
   interface userdetails {
     keyssid: string;
     userdetails: {
@@ -217,23 +279,22 @@ function App() {
     };
   }
 
-  function userinfo(e: any) {
-    console.log("i got clicked now");
+  interface messagetotemplate {
+    name: string;
+    socketid: string;
+    phonenumber: string;
+    email: string;
   }
 
-  const [socketImage, setImage] = useState<File | null>(null);
-  // const [userDetails, setUserDetails] = useState<Signuserdetails | null>(null);
-
-  // Use the session hook to get the session data
-
-  const [cursockid, setcursockid] = useState<SocketIOClient.Socket | null>(
-    null
-  );
+  // Memoize the userinfo function
+  const userinfo = useCallback((userdetails: messagetotemplate) => {
+    console.log("User selected:", userdetails);
+    settomessage(userdetails);
+  }, []);
 
   const { data: session, status } = useSession();
 
   useEffect(() => {
-    // Only proceed if session is available and not loading
     if (status === "authenticated" && session?.user && !usersocket.current) {
       const socket = io("http://localhost:3000", {
         auth: {
@@ -245,7 +306,6 @@ function App() {
       });
 
       usersocket.current = socket;
-      setcursockid(socket); // here i have the current socket id
 
       socket.on("session", ({ sessionID }: { sessionID: string }) => {
         setSessionID(sessionID);
@@ -253,9 +313,7 @@ function App() {
       });
 
       socket.on("connect", () => {
-        console.log(
-          `A client with socket ID ${socket.id} connected to server with session ID ${sessionID}`
-        );
+        console.log(`Connected to server with session ID ${sessionID}`);
         Getuserdetails();
       });
 
@@ -265,15 +323,12 @@ function App() {
             "http://localhost:3000/user/getuserdetails"
           );
           console.log(response.data);
-          console.log(response.data.userdetails);
-
-          // console.log(`the respose i get is ${response.data.keyssid}`);
+          // Ensure userdetails is an array
           const details = response.data.userdetails;
 
-          const Allotherusers = details.filter(function (val: any) {
-            return val.keyssid != sessionID;
-          });
-
+          const Allotherusers = details.filter(
+            (val: any) => val.keyssid !== sessionID
+          );
           console.log(Allotherusers);
           setallusers(Allotherusers);
         } catch (error) {
@@ -281,122 +336,43 @@ function App() {
         }
       };
 
-      socket.on(
-        "sendimages",
-        function ({ imageUrl, from }: { imageUrl: string; from: string }) {
-          console.log(`Received image from ${from}: ${imageUrl}`);
-        }
-      );
-
+      // Socket event listeners
       socket.on("disconnect", () => {
         console.log("Disconnected");
         usersocket.current = null;
       });
 
-      socket.on(
-        "privatemessages",
-        function ({ from, message }: { from: string; message: string }) {
-          console.log(`From: ${from}, Message: ${message}`);
-        }
-      );
+      socket.on("privatemessages", ({ from, message }) => {
+        console.log(`From: ${from}, Message: ${message}`);
+      });
     }
   }, [sessionID, session, status]);
 
-  const handleSendMessage = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    const socket = usersocket.current;
-
-    if (socket) {
-      try {
-        socket.emit("privatemessages", {
-          to: "hNi0LXRqr8KHcgBPAAAF",
-          message: message,
-        });
-        console.log(`Message sent: ${message}`);
-      } catch (e) {
-        console.error("Error sending message:", e);
-      }
-    } else {
-      console.log("Socket is not connected");
-    }
-  };
-
   return (
-    <div>
-      WebSocket Connection
-      <input
-        type="text"
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-      />
-      <button onClick={handleSendMessage}>Send Message</button>
-      <h2> Send Images </h2>
-      <input
-        type="file"
-        name="image"
-        accept="image/**"
-        onChange={function (e) {
-          if (e.target.files && e.target.files[0]) {
-            setImage(e.target.files[0]);
-          }
-        }}
-      />
-      <button
-        onClick={async (e) => {
-          e.preventDefault();
+    <div className="grid grid-cols-2 h-screen">
+      <div>
+        {allusers && (
+          <div>
+            {allusers.map((val: userdetails) => {
+              const userdetails =
+                typeof val.userdetails === "string"
+                  ? JSON.parse(val.userdetails)
+                  : val.userdetails;
+              return (
+                <div key={val.keyssid}>
+                  <button onClick={() => userinfo(userdetails)}>
+                    <h2>Socketid: {userdetails.socketid}</h2>
+                    <h2>Name: {userdetails.name}</h2>
+                    <h2>Phonenumber: {userdetails.phonenumber}</h2>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-          if (!socketImage) {
-            console.log("No image selected");
-            return;
-          }
-
-          try {
-            const formData = new FormData();
-            formData.append("image", socketImage);
-
-            const response = await axios.post(
-              "http://localhost:3000/uploads/images",
-              formData,
-              {
-                headers: {
-                  "Content-Type": "multipart/form-data",
-                },
-              }
-            );
-
-            const { imageUrl } = response.data;
-            console.log("Image sent successfully:", imageUrl);
-
-            const socket = usersocket.current;
-            if (socket) {
-              socket.emit("sendimages", {
-                from: socket.id,
-                to: "hNi0LXRqr8KHcgBPAAAF",
-                imageUrl: imageUrl,
-              });
-            }
-          } catch (error) {
-            console.error("Error uploading image:", error);
-          }
-        }}
-      >
-        Send the image
-      </button>
-      {/* {JSON.stringify(allusers)} */}
-      {allusers && (
-        <button onClick={userinfo}>
-          {allusers.map(function (val: any) {
-            const userdetails = JSON.parse(val.userdetails); // Parse the userdetails string
-            return (
-              <div key={val.keyssid} className="">
-                <h2>Socketid:{userdetails.socketid}</h2>
-                <h2> Name{userdetails.name}</h2>
-                <h2>phonenumber:{userdetails.phonenumber}</h2>
-              </div>
-            );
-          })}
-        </button>
-      )}
+      <div>{/* Remaining code for WebSocket and sending messages */}</div>
     </div>
   );
 }
