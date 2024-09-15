@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import redisClient from "./redisclient/client";
+import { Messagetemplate } from "./interfaces/interfaces";
 
 import { v4 as uuidv4 } from "uuid";
 
@@ -16,6 +17,7 @@ import user from "./routes/clientdetails";
 import signuproute from "./routes/signup";
 import signin from "./routes/signin";
 import cors from "cors";
+import prisma from "./db";
 
 interface customsocket extends Socket {
   sessionID: string;
@@ -140,28 +142,55 @@ io.on("connection", async function (socket) {
     console.log(val.id);
   });
 
-  socket.on("privatemessages", function ({ to, message }) {
-    console.log("someone sent the messages");
-    console.log(`messages is ${message}`);
-    console.log(to);
+  interface Messagetemplate {
+    from: string;
+    to: string;
+    fromphonenumber: string;
+    tophonenumber: string;
+    message: string;
+  }
 
-    socket.on("disconnect", async function () {
-      await redisClient.del(ssid);
-    });
-
-    const recipeentuser = userdetails.get(to);
-
-    if (!recipeentuser) {
-      console.log("not found a to user re ");
-    }
-
-    if (recipeentuser) {
-      io.to(to).emit("privatemessages", {
-        from: socket.id,
-        message,
+  socket.on(
+    "privatemessages",
+    async function ({
+      from,
+      to,
+      fromphonenumber,
+      tophonenumber,
+      message,
+    }: Messagetemplate) {
+      console.log("someone sent the messages");
+      const response = await prisma.message.create({
+        data: {
+          fromsocketid: from,
+          tosocketid: to,
+          fromphonenumber: fromphonenumber,
+          tophonenumber: tophonenumber,
+          message: message,
+        },
       });
+
+      const recipeentuser = userdetails.get(to);
+      console.log(
+        `the recipeient socked id is ${to} message is sent from ${from} and the message is ${message}`
+      );
+
+      if (!recipeentuser) {
+        console.log("not found a to user re ");
+        return;
+      }
+
+      if (recipeentuser) {
+        io.to(to).emit("privatemessages", {
+          from,
+          to,
+          fromphonenumber,
+          tophonenumber,
+          message,
+        });
+      }
     }
-  });
+  );
 
   socket.on(
     "sendimages",
@@ -181,6 +210,10 @@ io.on("connection", async function (socket) {
       io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
     }
   );
+
+  socket.on("disconnect", async function () {
+    await redisClient.del(ssid);
+  });
 });
 
 server.listen(3000, function () {

@@ -23,6 +23,7 @@ const clientdetails_1 = __importDefault(require("./routes/clientdetails"));
 const signup_1 = __importDefault(require("./routes/signup"));
 const signin_1 = __importDefault(require("./routes/signin"));
 const cors_1 = __importDefault(require("cors"));
+const db_1 = __importDefault(require("./db"));
 const userdetails = new Map();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -111,29 +112,43 @@ io.on("connection", function (socket) {
             console.log("each socket id is ");
             console.log(val.id);
         });
-        socket.on("privatemessages", function ({ to, message }) {
-            console.log("someone sent the messages");
-            console.log(`messages is ${message}`);
-            console.log(to);
-            socket.on("disconnect", function () {
-                return __awaiter(this, void 0, void 0, function* () {
-                    yield client_1.default.del(ssid);
+        socket.on("privatemessages", function (_a) {
+            return __awaiter(this, arguments, void 0, function* ({ from, to, fromphonenumber, tophonenumber, message, }) {
+                console.log("someone sent the messages");
+                const response = yield db_1.default.message.create({
+                    data: {
+                        fromsocketid: from,
+                        tosocketid: to,
+                        fromphonenumber: fromphonenumber,
+                        tophonenumber: tophonenumber,
+                        message: message,
+                    },
                 });
+                const recipeentuser = userdetails.get(to);
+                console.log(`the recipeient socked id is ${to} message is sent from ${from} and the message is ${message}`);
+                if (!recipeentuser) {
+                    console.log("not found a to user re ");
+                    return;
+                }
+                if (recipeentuser) {
+                    io.to(to).emit("privatemessages", {
+                        from,
+                        to,
+                        fromphonenumber,
+                        tophonenumber,
+                        message,
+                    });
+                }
             });
-            const recipeentuser = userdetails.get(to);
-            if (!recipeentuser) {
-                console.log("not found a to user re ");
-            }
-            if (recipeentuser) {
-                io.to(to).emit("privatemessages", {
-                    from: socket.id,
-                    message,
-                });
-            }
         });
         socket.on("sendimages", function ({ from, to, imageUrl, }) {
             console.log(`recieved message from ${from} and the message is ${imageUrl}`);
             io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
+        });
+        socket.on("disconnect", function () {
+            return __awaiter(this, void 0, void 0, function* () {
+                yield client_1.default.del(ssid);
+            });
         });
     });
 });
