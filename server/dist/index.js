@@ -24,6 +24,8 @@ const signup_1 = __importDefault(require("./routes/signup"));
 const signin_1 = __importDefault(require("./routes/signin"));
 const cors_1 = __importDefault(require("cors"));
 const db_1 = __importDefault(require("./db"));
+const imageupload_1 = __importDefault(require("./routes/imageupload"));
+const getallmessage_1 = __importDefault(require("./routes/getallmessage"));
 const userdetails = new Map();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -38,6 +40,8 @@ app.use("/uploads", fileupload_1.default);
 app.use("/user", clientdetails_1.default);
 app.use("/user", signup_1.default);
 app.use("/user", signin_1.default);
+app.use("/send", imageupload_1.default);
+app.use("/get", getallmessage_1.default);
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
@@ -90,6 +94,7 @@ io.on("connection", function (socket) {
             phonenumber: phonenumber,
             email: email,
         });
+        const socketid = socket.id;
         try {
             yield client_1.default.SET(ssid, userDetailss);
             console.log("stored in redis");
@@ -99,6 +104,7 @@ io.on("connection", function (socket) {
         }
         console.log("a user connected");
         console.log(socket.id);
+        socket.broadcast.emit("shownewuser", "hello");
         socket.on("newusers", function (data) {
             console.log(data);
         });
@@ -141,9 +147,29 @@ io.on("connection", function (socket) {
                 }
             });
         });
-        socket.on("sendimages", function ({ from, to, imageUrl, }) {
-            console.log(`recieved message from ${from} and the message is ${imageUrl}`);
-            io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
+        socket.on("sendimages", function (_a) {
+            return __awaiter(this, arguments, void 0, function* ({ from, to, fromphonenumber, tophonenumber, 
+            // message,
+            imageUrl, }) {
+                console.log(`recieved message from ${from} and the image url is ${imageUrl}`);
+                const response = yield db_1.default.message.create({
+                    data: {
+                        fromsocketid: from,
+                        tosocketid: to,
+                        fromphonenumber: fromphonenumber,
+                        tophonenumber: tophonenumber,
+                        imageUrl: imageUrl,
+                    },
+                });
+                console.log(`updated the image url in database`);
+                io.to(to).emit("sendimages", {
+                    from,
+                    to,
+                    fromphonenumber,
+                    tophonenumber,
+                    imageUrl,
+                });
+            });
         });
         socket.on("disconnect", function () {
             return __awaiter(this, void 0, void 0, function* () {

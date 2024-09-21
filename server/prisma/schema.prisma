@@ -20,10 +20,10 @@ model Message {
    tosocketid       String
    fromphonenumber  String
    tophonenumber    String
-   message          String
+   message          String?
    isread           Boolean  @default(false)
    timestamp        DateTime @default(now())
-
+   imageUrl         String?  
    fromuser         User     @relation("sentMessages", fields: [fromphonenumber], references: [phonenumber])
    touser           User     @relation("receivedMessages", fields: [tophonenumber], references: [phonenumber])
 }
@@ -37,3 +37,4 @@ model User {
    sentMessages     Message[] @relation("sentMessages")
    receivedMessages Message[] @relation("receivedMessages")
 }
+

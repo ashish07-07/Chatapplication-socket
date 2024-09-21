@@ -3,15 +3,14 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import io from "socket.io-client";
 import axios from "axios";
 import { useSession } from "next-auth/react";
-import { json } from "stream/consumers";
 
-import { Userdetails } from "../components/userdeatils";
-import { userInfo } from "os";
+import Image from "next/image";
 
 function App() {
   const usersocket = useRef<SocketIOClient.Socket | null>(null);
 
   const [message, setMessage] = useState<string>("");
+
   const [sessionID, setSessionID] = useState<string | null>(
     localStorage.getItem("sessionID") || null
   );
@@ -30,6 +29,7 @@ function App() {
     keyssid: string;
     userdetails: {
       name: string;
+
       socketid: string;
       phonenumber: string;
     };
@@ -50,14 +50,80 @@ function App() {
     message: string;
   }
 
+  interface recieveimagetemplate {
+    from: string;
+    to: string;
+    fromphonenumber: string;
+    tophonenumber: string;
+    imageUrl: string;
+  }
+
   interface SocketEventData {
     messagedetails: socketMessagetemplate;
   }
 
-  const userinfo = useCallback((userdetailss: messagetotemplate) => {
-    console.log("User selected:", userdetailss);
-    settomessage(userdetailss);
-  }, []);
+  interface Message {
+    id?: number;
+    fromphonenumber: string;
+    tophonenumber: string;
+    message?: string;
+    isread: boolean;
+    timestamp: Date;
+    imageUrl?: string;
+  }
+
+  const [allmessages, setallmessages] = useState<Message[] | null>(null);
+
+  async function Getallmessage() {
+    try {
+      if (!session?.user) {
+        return;
+      }
+
+      const response = await axios.get("http://localhost:3000/get/messages", {
+        params: {
+          fromphonenumber: session.user.phonenumber,
+          tophonenumber: tomessage?.phonenumber,
+        },
+      });
+
+      setallmessages(response.data.response);
+
+      return response.data.response;
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  interface Userchatinfo {
+    name: string;
+    ssid: string;
+    phonenumber: string;
+    email: string;
+    socketid: string;
+  }
+
+  const userinfo = useCallback(
+    async (userdetailss: messagetotemplate) => {
+      console.log("User selected:", userdetailss);
+      settomessage(userdetailss);
+      console.log("here the function i will call now");
+      try {
+        const response = await Getallmessage();
+
+        console.log("called this function waiting for the sresult");
+
+        if (response) {
+          console.log(response);
+        } else {
+          console.log("i did not get any responses yet");
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    },
+    [setMessage, Getallmessage]
+  );
 
   const [socketImage, setImage] = useState<File | null>(null);
 
@@ -82,11 +148,15 @@ function App() {
       });
 
       usersocket.current = socket;
-      setcursockid(socket); // here i have the current socket id
+      setcursockid(socket);
 
       socket.on("session", ({ sessionID }: { sessionID: string }) => {
         setSessionID(sessionID);
         localStorage.setItem("sessionID", sessionID);
+      });
+
+      socket.on("shownewuser", function () {
+        Getuserdetails();
       });
 
       socket.on("connect", () => {
@@ -104,7 +174,6 @@ function App() {
           console.log(response.data);
           console.log(response.data.userdetails);
 
-          // console.log(`the respose i get is ${response.data.keyssid}`);
           const details = response.data.userdetails;
 
           const Allotherusers = details.filter(function (val: any) {
@@ -120,8 +189,15 @@ function App() {
 
       socket.on(
         "sendimages",
-        function ({ imageUrl, from }: { imageUrl: string; from: string }) {
-          console.log(`Received image from ${from}: ${imageUrl}`);
+        function ({
+          from,
+          to,
+          fromphonenumber,
+          tophonenumber,
+
+          imageUrl,
+        }: recieveimagetemplate) {
+          console.log(`Received image from ${from}: and the  ${imageUrl} is `);
         }
       );
 
@@ -132,7 +208,7 @@ function App() {
 
       socket.on(
         "privatemessages",
-        function ({
+        async function ({
           from,
           to,
           fromphonenumber,
@@ -144,10 +220,38 @@ function App() {
           console.log(
             `Received message from ${from} and the message was ${message}`
           );
+          if (!session.user) {
+            return;
+          }
+
+          if (
+            from === session.user.phonenumber &&
+            to === tomessage?.phonenumber
+          ) {
+            const newMessage = {
+              fromphonenumber: fromphonenumber,
+              tophonenumber: tophonenumber,
+              message: message,
+              isread: false,
+              timestamp: new Date(),
+            };
+
+            setallmessages((prevMessages) => {
+              if (prevMessages) {
+                return [...prevMessages, newMessage];
+              } else {
+                return [newMessage];
+              }
+            });
+          }
         }
       );
     }
-  }, [sessionID, session, status]);
+  }, [sessionID, session, status, usersocket.current, allusers]);
+
+  useEffect(() => {
+    console.log("touser changed");
+  }, [tomessage]);
 
   const handleSendMessage = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -234,13 +338,20 @@ function App() {
               console.log("No image selected");
               return;
             }
+            if (!tomessage) {
+              console.log("please select a user to send the images");
+              return;
+            }
+            if (!session?.user) {
+              return;
+            }
 
             try {
               const formData = new FormData();
               formData.append("image", socketImage);
 
               const response = await axios.post(
-                "http://localhost:3000/uploads/images",
+                "http://localhost:3000/send/images",
                 formData,
                 {
                   headers: {
@@ -249,14 +360,19 @@ function App() {
                 }
               );
 
-              const { imageUrl } = response.data;
+              console.log(response);
+
+              const imageUrl = response.data.imageurl;
               console.log("Image sent successfully:", imageUrl);
 
               const socket = usersocket.current;
               if (socket) {
                 socket.emit("sendimages", {
                   from: socket.id,
-                  to: "hNi0LXRqr8KHcgBPAAAF",
+                  to: tomessage.socketid,
+                  fromphonenumber: session.user.phonenumber,
+                  tophonenumber: tomessage.phonenumber,
+
                   imageUrl: imageUrl,
                 });
               }
@@ -267,6 +383,25 @@ function App() {
         >
           Send the image
         </button>
+        {allmessages && (
+          <div>
+            {allmessages.map(function (val) {
+              return (
+                <div key={val.id}>
+                  {val.message && <h2>{val.message}</h2>}
+                  {val.imageUrl && (
+                    <Image
+                      src={val.imageUrl}
+                      width={200}
+                      height={200}
+                      alt="Picture loading"
+                    ></Image>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

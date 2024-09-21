@@ -18,7 +18,11 @@ import signuproute from "./routes/signup";
 import signin from "./routes/signin";
 import cors from "cors";
 import prisma from "./db";
+import fileupload from "express-fileupload";
+import imageupload from "./routes/imageupload";
+import getallmessage from "./routes/getallmessage";
 
+import { Particularmessage } from "./interfaces/interfaces";
 interface customsocket extends Socket {
   sessionID: string;
   userID: string;
@@ -46,6 +50,10 @@ app.use("/user", user);
 app.use("/user", signuproute);
 
 app.use("/user", signin);
+
+app.use("/send", imageupload);
+
+app.use("/get", getallmessage);
 
 const server = http.createServer(app);
 
@@ -114,6 +122,8 @@ io.on("connection", async function (socket) {
     email: email,
   });
 
+  const socketid = socket.id;
+
   try {
     await redisClient.SET(ssid, userDetailss);
 
@@ -124,6 +134,8 @@ io.on("connection", async function (socket) {
 
   console.log("a user connected");
   console.log(socket.id);
+
+  socket.broadcast.emit("shownewuser", "hello");
 
   socket.on("newusers", function (data) {
     console.log(data);
@@ -150,6 +162,14 @@ io.on("connection", async function (socket) {
     message: string;
   }
 
+  interface Sendiamgetemplate {
+    from: string;
+    to: string;
+    fromphonenumber: string;
+    tophonenumber: string;
+    message: string;
+    imageUrl: string;
+  }
   socket.on(
     "privatemessages",
     async function ({
@@ -194,20 +214,38 @@ io.on("connection", async function (socket) {
 
   socket.on(
     "sendimages",
-    function ({
+    async function ({
       from,
       to,
+      fromphonenumber,
+      tophonenumber,
+      // message,
       imageUrl,
-    }: {
-      from: string;
-      to: string;
-      imageUrl: string;
-    }) {
+    }: Sendiamgetemplate) {
       console.log(
-        `recieved message from ${from} and the message is ${imageUrl}`
+        `recieved message from ${from} and the image url is ${imageUrl}`
       );
 
-      io.to(to).emit("sendimages", { imageUrl: imageUrl, from: from });
+      const response = await prisma.message.create({
+        data: {
+          fromsocketid: from,
+          tosocketid: to,
+          fromphonenumber: fromphonenumber,
+          tophonenumber: tophonenumber,
+          imageUrl: imageUrl,
+        },
+      });
+
+      console.log(`updated the image url in database`);
+
+      io.to(to).emit("sendimages", {
+        from,
+        to,
+        fromphonenumber,
+        tophonenumber,
+
+        imageUrl,
+      });
     }
   );
 
