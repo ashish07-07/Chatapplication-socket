@@ -32,6 +32,7 @@ router.get("/getuserdetails", function (req, res) {
                 return {
                     keyssid: val,
                     userdetails: values[index],
+                    unreadcount: Number(0),
                 };
             });
             console.log(values);

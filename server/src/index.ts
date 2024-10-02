@@ -118,6 +118,7 @@ io.on("connection", async function (socket) {
   const userDetailss = JSON.stringify({
     name: name,
     socketid: customSocket.id,
+
     phonenumber: phonenumber,
     email: email,
   });
@@ -139,6 +140,7 @@ io.on("connection", async function (socket) {
 
   socket.on("newusers", function (data) {
     console.log(data);
+    console.log("are new user connected");
   });
 
   socket.on("message", function (data, isBinary) {

@@ -24,6 +24,7 @@ router.get("/getuserdetails", async function (req: Request, res: Response) {
       return {
         keyssid: val,
         userdetails: values[index],
+        unreadcount: Number(0),
       };
     });
 

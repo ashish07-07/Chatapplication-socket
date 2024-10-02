@@ -107,6 +107,7 @@ io.on("connection", function (socket) {
         socket.broadcast.emit("shownewuser", "hello");
         socket.on("newusers", function (data) {
             console.log(data);
+            console.log("are new user connected");
         });
         socket.on("message", function (data, isBinary) {
             console.log(` the message that ${socket.id} sent is ${data.messages}`);

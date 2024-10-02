@@ -3,36 +3,34 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import io from "socket.io-client";
 import axios from "axios";
 import { useSession } from "next-auth/react";
-
 import Image from "next/image";
 
 function App() {
   const usersocket = useRef<SocketIOClient.Socket | null>(null);
 
   const [message, setMessage] = useState<string>("");
-
   const [sessionID, setSessionID] = useState<string | null>(
     localStorage.getItem("sessionID") || null
   );
-
   const [allusers, setallusers] = useState<userdetails[]>([]);
+  const [tomessage, settomessage] = useState<messagetotemplate | null>(null);
 
-  const [tomessage, settomessage] = useState<messagetotemplate>();
+  const { data: session, status } = useSession();
+  const [allmessages, setallmessages] = useState<Message[] | null>(null);
+  const [socketImage, setImage] = useState<File | null>(null);
+  const [cursockid, setcursockid] = useState<SocketIOClient.Socket | null>(
+    null
+  );
 
-  interface Signuserdetails {
-    name: string;
-    email: string;
-    id: string;
-    phonenumber: string;
-  }
+  const tomessagere = useRef<messagetotemplate | null>(null);
   interface userdetails {
     keyssid: string;
     userdetails: {
       name: string;
-
       socketid: string;
       phonenumber: string;
     };
+    unreadcount?: number;
   }
 
   interface messagetotemplate {
@@ -58,10 +56,6 @@ function App() {
     imageUrl: string;
   }
 
-  interface SocketEventData {
-    messagedetails: socketMessagetemplate;
-  }
-
   interface Message {
     id?: number;
     fromphonenumber: string;
@@ -72,74 +66,55 @@ function App() {
     imageUrl?: string;
   }
 
-  const [allmessages, setallmessages] = useState<Message[] | null>(null);
-
   async function Getallmessage() {
     try {
-      if (!session?.user) {
-        return;
-      }
-
+      if (!session?.user || !tomessage?.phonenumber) return;
       const response = await axios.get("http://localhost:3000/get/messages", {
         params: {
           fromphonenumber: session.user.phonenumber,
-          tophonenumber: tomessage?.phonenumber,
+          tophonenumber: tomessage.phonenumber,
         },
       });
-
-      setallmessages(response.data.response);
-
-      return response.data.response;
-    } catch (e) {
-      console.log(e);
+      setallmessages(response.data.response || []);
+    } catch (error) {
+      console.error("Failed to fetch messages:", error);
     }
   }
 
-  interface Userchatinfo {
-    name: string;
-    ssid: string;
-    phonenumber: string;
-    email: string;
-    socketid: string;
-  }
+  const userinfo = useCallback((userdetailss: messagetotemplate) => {
+    settomessage(userdetailss);
 
-  const userinfo = useCallback(
-    async (userdetailss: messagetotemplate) => {
-      console.log("User selected:", userdetailss);
-      settomessage(userdetailss);
-      console.log("here the function i will call now");
-      try {
-        const response = await Getallmessage();
+    tomessagere.current = userdetailss;
+    console.log(tomessagere.current);
 
-        console.log("called this function waiting for the sresult");
-
-        if (response) {
-          console.log(response);
-        } else {
-          console.log("i did not get any responses yet");
+    setallusers((previoususer) => {
+      return previoususer.map(function (user) {
+        if (user.userdetails.phonenumber === userdetailss.phonenumber) {
+          return {
+            ...user,
+            unreadcount: 0,
+          };
         }
-      } catch (e) {
-        console.log(e);
-      }
-    },
-    [setMessage, Getallmessage]
-  );
 
-  const [socketImage, setImage] = useState<File | null>(null);
+        return user;
+      });
+    });
+  }, []);
 
-  const [cursockid, setcursockid] = useState<SocketIOClient.Socket | null>(
-    null
-  );
+  useEffect(() => {
+    if (tomessage) {
+      console.log(
+        `  the selected users phonenumber is ${tomessage.phonenumber}`
+      );
 
-  const { data: session, status } = useSession();
+      Getallmessage();
+    }
+  }, [tomessage]);
 
   useEffect(() => {
     if (status === "authenticated" && session?.user && !usersocket.current) {
-      const SessionID = localStorage.getItem("sessionID");
-      console.log(`BEFORE ACTULALY connecting the session id is ${SessionID}`);
       const socket = io("http://localhost:3000", {
         auth: {
-          // sessionID: sessionID || null,
           sessionID: sessionID || null,
           email: session.user.email,
           name: session.user.name,
@@ -155,160 +130,225 @@ function App() {
         localStorage.setItem("sessionID", sessionID);
       });
 
-      socket.on("shownewuser", function () {
-        Getuserdetails();
-      });
-
-      socket.on("connect", () => {
-        console.log(
-          `A client with socket ID ${socket.id} connected to server with session ID ${sessionID}`
-        );
-        Getuserdetails();
-      });
-
       const Getuserdetails = async () => {
         try {
           const response = await axios.get(
             "http://localhost:3000/user/getuserdetails"
           );
-          console.log(response.data);
-          console.log(response.data.userdetails);
+          const details = response.data.userdetails.filter(
+            (val: any) => val.keyssid !== sessionID
+          );
 
-          const details = response.data.userdetails;
-
-          const Allotherusers = details.filter(function (val: any) {
-            return val.keyssid != sessionID;
-          });
-
-          console.log(Allotherusers);
-          setallusers(Allotherusers);
+          const parsedDetails = details.map((user: any) => ({
+            ...user,
+            userdetails: JSON.parse(user.userdetails),
+          }));
+          setallusers(parsedDetails);
+          console.log("Fetched Users:", parsedDetails);
         } catch (error) {
           console.error("Error fetching user details:", error);
         }
       };
 
-      socket.on(
-        "sendimages",
-        function ({
-          from,
-          to,
-          fromphonenumber,
-          tophonenumber,
-
-          imageUrl,
-        }: recieveimagetemplate) {
-          console.log(`Received image from ${from}: and the  ${imageUrl} is `);
-        }
-      );
-
-      socket.on("disconnect", () => {
-        console.log("Disconnected");
-        usersocket.current = null;
+      socket.on("connect", () => {
+        console.log(`Connected with socket ID ${socket.id}`);
+        Getuserdetails();
       });
+
+      socket.on("shownewuser", Getuserdetails);
 
       socket.on(
         "privatemessages",
-        async function ({
+        function ({
           from,
           to,
           fromphonenumber,
           tophonenumber,
           message,
         }: socketMessagetemplate) {
-          console.log("receieved message re");
+          console.log(`the recieved message is ${message}`);
+          if (to === socket.id) {
+            console.log(`the tomeesae is ${tomessage?.name}`);
+            console.log(
+              `the ref useref tomessage is ${tomessagere.current} wts up man`
+            );
+            if (
+              tomessagere.current?.phonenumber &&
+              tomessagere.current.phonenumber === fromphonenumber
+            ) {
+              console.log(
+                "to message is selected i just need to update the message only"
+              );
+              setallmessages((prevMessages) => [
+                ...(prevMessages || []),
+                {
+                  fromphonenumber,
+                  tophonenumber,
+                  message,
+                  isread: true,
+                  timestamp: new Date(),
+                },
+              ]);
+            } else {
+              console.log(
+                "inside the lese check its ither user or user is not seleced"
+              );
 
-          console.log(
-            `Received message from ${from} and the message was ${message}`
-          );
-          if (!session.user) {
-            return;
-          }
-
-          if (
-            from === session.user.phonenumber &&
-            to === tomessage?.phonenumber
-          ) {
-            const newMessage = {
-              fromphonenumber: fromphonenumber,
-              tophonenumber: tophonenumber,
-              message: message,
-              isread: false,
-              timestamp: new Date(),
-            };
-
-            setallmessages((prevMessages) => {
-              if (prevMessages) {
-                return [...prevMessages, newMessage];
-              } else {
-                return [newMessage];
-              }
-            });
+              setallusers((prevUsers) =>
+                prevUsers.map((user) =>
+                  user.userdetails.phonenumber === fromphonenumber
+                    ? { ...user, unreadcount: (user.unreadcount ?? 0) + 1 }
+                    : user
+                )
+              );
+            }
           }
         }
       );
-    }
-  }, [sessionID, session, status, usersocket.current, allusers]);
 
-  useEffect(() => {
-    console.log("touser changed");
-  }, [tomessage]);
+      socket.on(
+        "sendimages",
+        ({
+          from,
+          to,
+          fromphonenumber,
+          tophonenumber,
+          imageUrl,
+        }: recieveimagetemplate) => {
+          if (tomessagere.current?.phonenumber === fromphonenumber) {
+            setallmessages((prevMessages) => [
+              ...(prevMessages || []),
+              {
+                fromphonenumber,
+                tophonenumber,
+                imageUrl,
+                isread: true,
+                timestamp: new Date(),
+              },
+            ]);
+          } else {
+            setallusers((prevUsers) =>
+              prevUsers.map((user) =>
+                user.userdetails.phonenumber === fromphonenumber
+                  ? { ...user, unreadcount: (user.unreadcount ?? 0) + 1 }
+                  : user
+              )
+            );
+          }
+          console.log(`Received image from ${from}: ${imageUrl}`);
+        }
+      );
+
+      socket.on("disconnect", () => {
+        console.log("Disconnected from server");
+        usersocket.current = null;
+      });
+    }
+  }, [sessionID, session, status, usersocket.current]);
 
   const handleSendMessage = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    console.log("i M GOING TO SEND THE IAMGE NOW");
     const socket = usersocket.current;
+    if (!socket || !tomessage || !session?.user || !message) return;
 
-    if (!tomessage) {
-      console.log("no reciepient selected here");
+    if (!session.user) {
       return;
     }
-    if (!session?.user) {
-      return;
+
+    console.log(
+      `the tomessage name is ${tomessage.name} ${tomessage.phonenumber} and the socket id is ${tomessage.socketid}`
+    );
+
+    try {
+      socket.emit("privatemessages", {
+        from: socket.id,
+        to: tomessage.socketid,
+        fromphonenumber: session.user.phonenumber,
+        tophonenumber: tomessage.phonenumber,
+        message,
+      });
+
+      setallmessages((prevMessages) => [
+        ...(prevMessages || []),
+        {
+          fromphonenumber: session.user?.phonenumber,
+          tophonenumber: tomessage.phonenumber,
+          message,
+          isread: false,
+          timestamp: new Date(),
+        },
+      ]);
+
+      setMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
     }
-    if (!message) {
-      return;
-    }
-    if (socket) {
-      try {
-        socket.emit("privatemessages", {
+  };
+
+  const handleSendImage = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!socketImage || !tomessage || !session?.user) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("image", socketImage);
+      const response = await axios.post(
+        "http://localhost:3000/send/images",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      const imageUrl = response.data.imageurl;
+      const socket = usersocket.current;
+
+      if (socket) {
+        socket.emit("sendimages", {
           from: socket.id,
           to: tomessage.socketid,
-          fromphonenumber: session?.user.phonenumber,
+          fromphonenumber: session.user.phonenumber,
           tophonenumber: tomessage.phonenumber,
-          message: message,
+          imageUrl,
         });
-        console.log(`Message sent: ${message}`);
-      } catch (e) {
-        console.error("Error sending message:", e);
+
+        console.log("i have sent a image man");
+        setallmessages((prevMessages) => [
+          ...(prevMessages || []),
+          {
+            fromphonenumber: session.user?.phonenumber,
+            tophonenumber: tomessage.phonenumber,
+            imageUrl,
+            isread: false,
+            timestamp: new Date(),
+          },
+        ]);
       }
-    } else {
-      console.log("Socket is not connected");
+    } catch (error) {
+      console.error("Error uploading image:", error);
     }
   };
 
   return (
     <div className="grid grid-cols-2 h-screen bg-white">
-      <div className="text-black">
-        {allusers && (
-          <div>
-            {allusers.map(function (val: any) {
-              const userdetails =
-                typeof val.userdetails === "string"
-                  ? JSON.parse(val.userdetails)
-                  : val.userdetails;
-
-              return (
-                <div key={val.keyssid} className="">
-                  <button onClick={() => userinfo(userdetails)}>
-                    <h2>Name: {userdetails.name}</h2>
-                    <h2>Phonenumber: {userdetails.phonenumber}</h2>
-                    <h2>Phonenumber: {userdetails.socketid}</h2>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <div className="grid grid-cols-2 h-screen bg-white">
+        <div className="text-black">
+          {allusers && (
+            <div>
+              {allusers.map((val: any) => {
+                const userdetails = val.userdetails;
+                return (
+                  <div key={val.keyssid}>
+                    <button onClick={() => userinfo(userdetails)}>
+                      <h2>Name: {userdetails.name}</h2>
+                      <h2>Phonenumber: {userdetails.phonenumber}</h2>
+                      <h2>Socketid: {userdetails.socketid}</h2>
+                      <h2>Unread Messages: {val.unreadcount}</h2>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="text-black">
@@ -322,84 +362,25 @@ function App() {
         <h2> Send Images </h2>
         <input
           type="file"
-          name="image"
-          accept="image/**"
-          onChange={function (e) {
-            if (e.target.files && e.target.files[0]) {
-              setImage(e.target.files[0]);
-            }
-          }}
+          accept="image/*"
+          onChange={(e) => e.target.files && setImage(e.target.files[0])}
         />
-        <button
-          onClick={async (e) => {
-            e.preventDefault();
-
-            if (!socketImage) {
-              console.log("No image selected");
-              return;
-            }
-            if (!tomessage) {
-              console.log("please select a user to send the images");
-              return;
-            }
-            if (!session?.user) {
-              return;
-            }
-
-            try {
-              const formData = new FormData();
-              formData.append("image", socketImage);
-
-              const response = await axios.post(
-                "http://localhost:3000/send/images",
-                formData,
-                {
-                  headers: {
-                    "Content-Type": "multipart/form-data",
-                  },
-                }
-              );
-
-              console.log(response);
-
-              const imageUrl = response.data.imageurl;
-              console.log("Image sent successfully:", imageUrl);
-
-              const socket = usersocket.current;
-              if (socket) {
-                socket.emit("sendimages", {
-                  from: socket.id,
-                  to: tomessage.socketid,
-                  fromphonenumber: session.user.phonenumber,
-                  tophonenumber: tomessage.phonenumber,
-
-                  imageUrl: imageUrl,
-                });
-              }
-            } catch (error) {
-              console.error("Error uploading image:", error);
-            }
-          }}
-        >
-          Send the image
-        </button>
+        <button onClick={handleSendImage}>Send the image</button>
         {allmessages && (
           <div>
-            {allmessages.map(function (val) {
-              return (
-                <div key={val.id}>
-                  {val.message && <h2>{val.message}</h2>}
-                  {val.imageUrl && (
-                    <Image
-                      src={val.imageUrl}
-                      width={200}
-                      height={200}
-                      alt="Picture loading"
-                    ></Image>
-                  )}
-                </div>
-              );
-            })}
+            {allmessages.map((val, index) => (
+              <div key={index}>
+                {val.message && <h2>{val.message}</h2>}
+                {val.imageUrl && (
+                  <Image
+                    src={val.imageUrl}
+                    alt="Received Image"
+                    width={200}
+                    height={200}
+                  />
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
