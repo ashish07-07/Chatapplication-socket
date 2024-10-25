@@ -251,6 +251,45 @@ io.on("connection", async function (socket) {
     }
   );
 
+  interface Offer {
+    from: string;
+    to: string;
+    sdp: RTCSessionDescriptionInit;
+  }
+  socket.on("create-an-offer", function ({ from, to, sdp }: Offer) {
+    console.log("some one requested for a video call");
+    console.log(
+      `who requested the callis  ${from} to is ${to} and the offer is ${sdp}`
+    );
+    io.to(to).emit("recievean-offer", {
+      from,
+      to,
+      sdp,
+    });
+  });
+
+  socket.on("send-answer", function ({ from, to, sdp }: Offer) {
+    console.log(
+      `recieved the answer from ${from} to is ${to} and the answer is ${sdp}`
+    );
+
+    io.to(to).emit("recieve-answer", {
+      from,
+      to,
+      sdp,
+    });
+  });
+  // recieve-answer
+
+  // ice-candidates
+
+  socket.on("ice-candidates", function ({ from, to, candidate }) {
+    io.to(to).emit("ice-candidate-arrived", {
+      from,
+      to,
+      candidate,
+    });
+  });
   socket.on("disconnect", async function () {
     await redisClient.del(ssid);
   });
