@@ -4,6 +4,7 @@ import io from "socket.io-client";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { CANCELLED } from "dns";
 
 function App() {
   const usersocket = useRef<SocketIOClient.Socket | null>(null);
@@ -11,6 +12,7 @@ function App() {
   let pc2: any;
 
   const videoref = useRef<HTMLVideoElement>(null);
+  const recieversvideoref = useRef<HTMLVideoElement>(null);
 
   const [message, setMessage] = useState<string>("");
   const [sessionID, setSessionID] = useState<string | null>(
@@ -91,26 +93,6 @@ function App() {
     }
   }
 
-  // async function offeranswer(from: any, to: any, sdp: any) {
-  //   pc2 = new RTCPeerConnection();
-  //   console.log(typeof sdp);
-  //   // const sdpoffer = JSON.parse(sdp);
-  //   const sdpoffer = sdp;
-
-  //   await pc2.setRemoteDescription(sdpoffer);
-  //   const answer = await pc2.createAnswer();
-
-  //   await pc2.setLocalDescription(answer);
-
-  //   const socket = usersocket.current;
-
-  //   socket.emit("send-answer", {
-  //     from,
-  //     to,
-  //     sdp,
-  //   });
-  // }
-
   const userinfo = useCallback((userdetailss: messagetotemplate) => {
     settomessage(userdetailss);
     console.log(
@@ -189,6 +171,10 @@ function App() {
       });
 
       socket.on("shownewuser", Getuserdetails);
+
+      socket.on("transport-created", function ({ transport }) {
+        console.log(`for me transport is created now no worriers`);
+      });
 
       socket.on(
         "privatemessages",
@@ -277,18 +263,39 @@ function App() {
           "offer came from server and now imwill create an answer and emit "
         );
 
-        const pc2 = new RTCPeerConnection();
-        await pc2.setRemoteDescription(sdp);
-
+        console.log(`the offer is ${JSON.stringify(sdp)}`);
+        let pc2 = new RTCPeerConnection();
         pc2.ontrack = (event) => {
-          console.log("came inside the track video streaming platform re");
+          console.log(`the video ref is ${videoref.current}`);
+
           if (videoref.current) {
-            videoref.current.srcObject = event.streams[0]; // Use the first stream
+            if (!videoref.current.srcObject) {
+              videoref.current.srcObject = new MediaStream();
+            }
+
+            const mediaStream = videoref.current.srcObject as MediaStream;
+            mediaStream.addTrack(event.track);
+
+            console.log("Track added:", event.track.kind); // This should log both 'video' and 'audio' for their respective tracks
+          } else {
+            console.log("video ref is null still");
           }
         };
 
-        const answer = await pc2.createAnswer();
-        await pc2.setLocalDescription(answer);
+        // pc.addTrack(stream.getVideoTracks()[0]);
+        // pc.addTrack(stream.getAudioTracks()[0]);
+
+        // const video = document.createElement("video");
+        // document.body.appendChild(video);
+
+        //
+
+        // pc2.ontrack = async (event) => {
+        //   video.srcObject = new MediaStream([event.track]);
+        //   await video.play();
+        // };
+
+        await pc2.setRemoteDescription(sdp);
 
         pc2.onicecandidate = function (event) {
           socket.emit("ice-candidates", {
@@ -297,6 +304,9 @@ function App() {
             candidate: event.candidate,
           });
         };
+
+        const answer = await pc2.createAnswer();
+        await pc2.setLocalDescription(answer);
 
         console.log("creates answer");
         console.log(`i have createda n answer${answer}`);
@@ -321,13 +331,6 @@ function App() {
 
           pc2.addIceCandidate(candidate);
         });
-
-        // pc2.addEventListener("track", (event) => {
-        //   console.log("Track event triggered on pc2");
-        //   if (videoref.current) {
-        //     videoref.current.srcObject = event.streams[0];
-        //   }
-        // });
       });
 
       socket.on("disconnect", () => {
@@ -425,7 +428,17 @@ function App() {
       sdp: RTCSessionDescriptionInit;
     }
     const socket = usersocket.current;
+
     let pc = new RTCPeerConnection();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+
+    // pc.addTrack(stream.getVideoTracks()[0]);
+    // pc.addTrack(stream.getAudioTracks()[0]);
+
+    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     pc.onnegotiationneeded = async function () {
       console.log("negotiation needed");
@@ -453,14 +466,13 @@ function App() {
     };
 
     socket.on("ice-candidate-arrived", function ({ from, to, candidate }: any) {
+      console.log(JSON.stringify(candidate));
       if (candidate) {
         pc.addIceCandidate(candidate);
       } else {
         console.log("no ice candidates");
       }
     });
-
-    // console.log(`the offer which created is ${offer} Broswer 1 -create offer`);
 
     console.log(
       `request for video call i need to check the to  user socketid ${tomessagere.current?.socketid}`
@@ -473,25 +485,19 @@ function App() {
       const answer = sdp;
 
       pc.setRemoteDescription(answer);
+
       console.log("recieved the answer from server");
       console.log(`the pc localdescription now is ${pc.localDescription}`);
     });
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-
-    pc.addTrack(stream.getVideoTracks()[0]);
-    pc.addTrack(stream.getAudioTracks()[0]);
-
-    // const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    // stream.getTracks().forEach((track) => pc.addTrack(track, stream));
   }
 
   return (
     <div className="grid grid-cols-2 h-screen bg-white">
       <div className="grid grid-cols-2 h-screen bg-white">
+        {/* <video ref={videoref}></video> */}
+
+        <video ref={videoref} autoPlay playsInline></video>
+
         <div className="text-black">
           {allusers && (
             <div>
@@ -548,7 +554,7 @@ function App() {
               ))}
             </div>
           )}
-          <video ref={videoref}></video>
+          {/* <video ref={videoref}></video> */}
         </div>
       )}
     </div>
